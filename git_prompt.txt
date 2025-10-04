@@ -1,0 +1,7 @@
+I want you to do a few things for me, can you setup a new repo
+
+/home/jon2allen/repos/test-scrubbing
+
+then commit a fake security key to a credentials text file
+setup a fake project and add commits after the first commit
+I want to use this repo to test rewriting git history ( I will do that later) I just need the initial sample repo
