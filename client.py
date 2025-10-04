@@ -8,7 +8,7 @@ gemini_client = genai.Client()
 async def main():    
     async with mcp_client:
         response = await gemini_client.aio.models.generate_content(
-            model="gemini-2.5-pro",
+            model="gemini-2.5-flash",
             # contents="get a detail file listing of all files including hidden files in /home/jon2allen/",
             contents="can you list the tools available to monitor disk io performance on local host and test if they exist. show os version" ,
             config=genai.types.GenerateContentConfig(

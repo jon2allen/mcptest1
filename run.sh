@@ -24,7 +24,7 @@ echo ""
 echo "--- Changing Directory and Checking Repo Status ---"
 
 # Change directory to the specified path
-TARGET_DIR="repo/test-scrubbing"
+TARGET_DIR="repos/test-scrubbing"
 echo "Changing directory to: $TARGET_DIR"
 
 if cd "$TARGET_DIR"; then
