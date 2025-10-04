@@ -1,5 +1,5 @@
-
-# --- Configuration ---
+#!/usr/bin/env bash
+# configuration ---
 # The name of the benign package to install.
 PACKAGE_NAME="mcp-server-commands"
 # The file we want to locate within the package's directory.
@@ -8,33 +8,35 @@ FILE_TO_FIND="index.js"
 # --- Script Start ---
 echo "Starting the safe package installation and file search script..."
 
-# 1. Install the npm package globally
-# The '-g' flag installs the package globally, making it accessible from anywhere.
-echo "Attempting to install '$PACKAGE_NAME' using npm..."
-if npm install  "$PACKAGE_NAME"; then
+# 1. Install the npm package locally
+# The package will be installed into the local 'node_modules' directory.
+echo "Attempting to install '$PACKAGE_NAME' locally using npm..."
+if npm install "$PACKAGE_NAME"; then
     echo "'$PACKAGE_NAME' installed successfully."
 else
-    echo "Error: Failed to install '$PACKAGE_NAME'. Please ensure npm is installed and you have the necessary permissions."
+    echo "Error: Failed to install '$PACKAGE_NAME'. Please ensure npm is installed."
     exit 1
 fi
 
-# 2. Find the root directory of the globally installed package
-# 'npm root -g' command returns the path to the global node_modules directory.
-NPM_ROOT=$(npm root -g)
+# 2. Find the root directory of the locally installed package
+# 'npm root' command returns the path to the local node_modules directory.
+# We suppress potential errors (2>/dev/null) and capture the output.
+NPM_ROOT=$(npm root 2>/dev/null)
 if [ -z "$NPM_ROOT" ]; then
-    echo "Error: Could not determine the npm global root directory."
+    echo "Error: Could not determine the local npm root directory."
     exit 1
 fi
 
+# Construct the expected package directory path
 PACKAGE_DIR="$NPM_ROOT/$PACKAGE_NAME"
 echo "The package is expected to be in: $PACKAGE_DIR"
 
 # 3. Find the specific file within the package directory
 # The 'find' command searches for files and directories.
-# -L: Follow symbolic links
-# -name: Specifies the filename to search for
+# -type f: Ensures we only look for regular files
 echo "Searching for '$FILE_TO_FIND' within '$PACKAGE_DIR'..."
-FILE_PATH=$(find -L "$PACKAGE_DIR" -name "$FILE_TO_FIND")
+# Use 'head -n 1' to ensure only the path to the first match is returned.
+FILE_PATH=$(find "$PACKAGE_DIR" -name "$FILE_TO_FIND" -type f 2>/dev/null | head -n 1)
 
 # 4. Report the result
 if [ -n "$FILE_PATH" ]; then
@@ -49,4 +51,3 @@ else
 fi
 
 echo "Script finished."
-
