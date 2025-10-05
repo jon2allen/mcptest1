@@ -9,6 +9,6 @@ prohibited_commands = [
 ]
 
 # If set to True, all command restrictions are ignored and execution is permitted.
-#override = false 
+override = false 
 
-override = true 
+#override = true 
