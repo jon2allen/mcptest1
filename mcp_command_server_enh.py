@@ -8,6 +8,8 @@ import logging
 import argparse
 import subprocess
 from typing import Dict, Any, List, Optional
+import tomli # Import tomli to load the config
+import re    # Import re for robust command checking
 
 # The user's template uses FastMCP, so we'll import that.
 from fastmcp import FastMCP
@@ -24,6 +26,30 @@ logging.basicConfig(
 )
 logger = logging.getLogger("mcp_command_server")
 
+# --- Configuration Loading ---
+CONFIG_FILE = "config.toml"
+SERVER_CONFIG = {}
+DEFAULT_CONFIG = {
+    "command_blocking": {
+        "prohibited_commands": ['rm ', 'mv ', 'sudo ', 'su '],
+        "override": False
+    }
+}
+
+def load_config():
+    """Load configuration from the TOML file."""
+    global SERVER_CONFIG
+    try:
+        with open(CONFIG_FILE, "rb") as f:
+            SERVER_CONFIG = tomli.load(f)
+        logger.info("Configuration loaded successfully from %s", CONFIG_FILE)
+    except FileNotFoundError:
+        logger.error("Configuration file '%s' not found. Using safe defaults.", CONFIG_FILE)
+        SERVER_CONFIG = DEFAULT_CONFIG
+    except Exception as e:
+        logger.error("Failed to parse configuration file '%s': %s. Using safe defaults.", CONFIG_FILE, e)
+        SERVER_CONFIG = DEFAULT_CONFIG
+
 # --- Command Execution Logic (from mcp-server-commands) ---
 
 class ExecResult:
@@ -33,16 +59,41 @@ class ExecResult:
         self.stderr = stderr
         self.code = code
 
-# --- NEW FUNCTION FOR COMMAND BLOCKING ---
+# --- FUNCTION FOR COMMAND BLOCKING ---
 def is_command_blocked(command: str) -> bool:
-    """Checks if a command contains prohibited substrings."""
-    prohibited = ('rm ', 'mv ', 'sudo ', 'su ')
+    """Checks if a command contains prohibited substrings loaded from config."""
+    prohibited_cmds = SERVER_CONFIG.get("command_blocking", {}).get("prohibited_commands", [])
+    
+    # 1. Prepare list for robust checking (e.g., just 'rm', 'mv')
+    cleaned_prohibited = [cmd.strip() for cmd in prohibited_cmds]
+    
+    if not cleaned_prohibited:
+        return False
+        
+    # Pattern to catch command followed by space or dash (e.g., 'rm -rf')
+    pattern = r'\b(' + '|'.join(re.escape(cmd) for cmd in cleaned_prohibited) + r')[\s-]'
+    
+    # Check command parts (for 'command1 && command2')
+    command_parts = re.split(r'[;&|]+', command)
     command_lower = command.lower()
-    for block in prohibited:
+
+    for part in command_parts:
+        # Check against the robust regex pattern
+        if re.search(pattern, part.strip().lower()):
+            return True
+            
+    # 2. Check the original strict match 
+    for block in prohibited_cmds:
         if block in command_lower:
             return True
+            
     return False
-# -----------------------------------------
+
+def check_override() -> bool:
+    """Checks if the command execution override is enabled in the config."""
+    # Returns False if 'command_blocking' or 'override' key is missing, maintaining default security.
+    return SERVER_CONFIG.get("command_blocking", {}).get("override", False)
+# ----------------------------------------------------
 
 
 async def fish_workaround(interpreter: str, stdin: str, options: Dict[str, Any]) -> ExecResult:
@@ -117,19 +168,17 @@ async def run_command(
 ) -> Dict[str, Any]:
     """
     Run a shell command on the local machine and get the output.
-    The client can check the 'system_info' resource to learn the OS
-
-    :param command: The command to execute, including any arguments (e.g., "ls -la").
-    :param workdir: Optional. The working directory where the command should be run.
-    :param stdin: Optional. Text to be piped into the command's standard input. This is useful for passing data to scripts or creating files.
-    :return: A dictionary containing the command's output.
+    ...
     """
     logger.info("Received run_command request: command='%s', workdir='%s'", command, workdir)
     
-    # --- COMMAND BLOCKING IMPLEMENTATION ---
-    if is_command_blocked(command):
-        blocked_feedback = "This server is not authorized to run these commands"
-        logger.warning("Blocked command attempted: '%s'", command)
+    blocked_feedback = "This server is not authorized to run these commands"
+
+    # --- RESTRICTION BYPASS LOGIC ---
+    if check_override():
+        logger.warning("Command restrictions bypassed via config override.")
+    elif is_command_blocked(command):
+        logger.warning("Blocked command denied: '%s'", command)
         return {
             "content": [
                 {"type": "text", "text": "1", "name": "EXIT_CODE"},
@@ -137,7 +186,7 @@ async def run_command(
             ],
             "is_error": True
         }
-    # --------------------------------------
+    # --------------------------------
 
     options = {"cwd": workdir} if workdir else {}
     exec_result = await exec_command(command, stdin, options)
@@ -153,5 +202,7 @@ async def run_command(
 
     
 if __name__ == "__main__":
+    # Load configuration before starting the server
+    load_config() 
     logger.info("Starting MCP Command Server")
     mcp.run()
