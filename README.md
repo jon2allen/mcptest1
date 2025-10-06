@@ -11,6 +11,7 @@ A Python proof of concept to  use **Google Gemini AI** with **FastMCP** for secu
 - Custom tools example (e.g., dice roller, system info)
 - Configurable command blocking for security
 - CLI and script-based workflows
+- only uses STDIO MCP protocol
 
 ---
 
