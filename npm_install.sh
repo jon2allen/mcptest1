@@ -43,6 +43,7 @@ if [ -n "$FILE_PATH" ]; then
     echo "----------------------------------------"
     echo "✅ Success! Found the file."
     echo "File Path: $FILE_PATH"
+    echo $FILE_PATH > npm_path.txt
     echo "----------------------------------------"
 else
     echo "----------------------------------------"
