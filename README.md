@@ -17,6 +17,8 @@ A Python proof of concept to  use **Google Gemini AI** with **FastMCP** for secu
 ## **Installation**
 ```bash
 
+pre-req - must have Gemini/Google api key in ENV variable
+
 git clone https://github.com/jon2allen/mcptest1.git
 
 run vsetup.py to establish venv
